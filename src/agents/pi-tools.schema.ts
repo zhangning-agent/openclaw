@@ -90,8 +90,12 @@ export function normalizeToolParameters(
   const isAnthropicProvider = options?.modelProvider?.toLowerCase().includes("anthropic");
   const isXai = isXaiProvider(options?.modelProvider, options?.modelId);
 
+  const isArkProvider = /^(volcengine(-plan)?|byteplus(-plan)?|ark)(\/.*)?$/.test(
+    options?.modelProvider?.toLowerCase() || "",
+  );
+
   function applyProviderCleaning(s: unknown): unknown {
-    if (isGeminiProvider && !isAnthropicProvider) {
+    if ((isGeminiProvider || isArkProvider) && !isAnthropicProvider) {
       return cleanSchemaForGemini(s);
     }
     if (isXai) {
