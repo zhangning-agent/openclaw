@@ -1527,7 +1527,7 @@
       "@napi-rs/canvas",
       "@tloncorp/api",
       "@tloncorp/tlon-skill",
-      "@whiskeysockets/baileys",
+      "@mofanke2/baileys",
       "authenticate-pam",
       "esbuild",
       "node-llama-cpp",

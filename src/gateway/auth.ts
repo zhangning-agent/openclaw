@@ -539,6 +539,9 @@ async function authorizeGatewayConnectCore(
     const hasProxyIdentityHeader =
       proxyUserHeader !== undefined && Boolean(req?.headers?.[proxyUserHeader]);
     if (localDirect && !hasProxyIdentityHeader) {
+      if (!auth.token) {
+        return { ok: true, method: "none" };
+      }
       if (limiter) {
         const rlCheck: RateLimitCheckResult = limiter.check(ip, rateLimitScope);
         if (!rlCheck.allowed) {
