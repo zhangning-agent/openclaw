@@ -815,6 +815,7 @@ export async function compactEmbeddedPiSessionDirect(
       const { builtInTools, customTools } = splitSdkTools({
         tools: effectiveTools,
         sandboxEnabled: !!sandbox?.enabled,
+        toolCallTimeoutSeconds: params.config?.agents?.defaults?.toolCallTimeoutSeconds,
       });
 
       const providerStreamFn = resolveCompactionProviderStream({
