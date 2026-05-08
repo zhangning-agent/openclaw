@@ -870,7 +870,7 @@ describe("trusted-proxy auth", () => {
     expect(res.user).toBe("nick@example.com");
   });
 
-  describe("local-direct trusted-proxy requests", () => {
+  describe("local-direct token fallback", () => {
     function authorizeLocalDirect(options?: {
       token?: string;
       connectToken?: string;
@@ -895,37 +895,38 @@ describe("trusted-proxy auth", () => {
       });
     }
 
-    it.each([
-      {
-        name: "without credentials",
-        options: {
-          token: "secret",
-        },
-      },
-      {
-        name: "with a valid token",
-        options: {
-          token: "secret",
-          connectToken: "secret",
-        },
-      },
-      {
-        name: "with a wrong token",
-        options: {
-          token: "secret",
-          connectToken: "wrong",
-        },
-      },
-      {
-        name: "when no local token is configured",
-        options: {
-          connectToken: "secret",
-        },
-      },
-    ])("rejects local-direct request $name", async ({ options }) => {
-      const res = await authorizeLocalDirect(options);
+    it("allows local-direct request with a valid token", async () => {
+      const res = await authorizeLocalDirect({
+        token: "secret",
+        connectToken: "secret",
+      });
+      expect(res.ok).toBe(true);
+      expect(res.method).toBe("token");
+    });
+
+    it("rejects local-direct request without credentials", async () => {
+      const res = await authorizeLocalDirect({
+        token: "secret",
+      });
       expect(res.ok).toBe(false);
-      expect(res.reason).toBe("trusted_proxy_loopback_source");
+      expect(res.reason).toBe("token_missing");
+    });
+
+    it("rejects local-direct request with a wrong token", async () => {
+      const res = await authorizeLocalDirect({
+        token: "secret",
+        connectToken: "wrong",
+      });
+      expect(res.ok).toBe(false);
+      expect(res.reason).toBe("token_mismatch");
+    });
+
+    it("rejects local-direct request when no local token is configured", async () => {
+      const res = await authorizeLocalDirect({
+        connectToken: "secret",
+      });
+      expect(res.ok).toBe(false);
+      expect(res.reason).toBe("token_missing_config");
     });
 
     it("rejects trusted-proxy identity headers from loopback sources", async () => {
@@ -974,7 +975,7 @@ describe("trusted-proxy auth", () => {
       expect(res.reason).toBe("trusted_proxy_loopback_source");
     });
 
-    it("rejects direct loopback even when Host is not localish", async () => {
+    it("uses token fallback for direct loopback even when Host is not localish", async () => {
       const res = await authorizeGatewayConnect({
         auth: {
           mode: "trusted-proxy",
@@ -992,8 +993,8 @@ describe("trusted-proxy auth", () => {
         } as never,
       });
 
-      expect(res.ok).toBe(false);
-      expect(res.reason).toBe("trusted_proxy_loopback_source");
+      expect(res.ok).toBe(true);
+      expect(res.method).toBe("token");
     });
 
     it("rejects same-host proxy request with missing required header", async () => {

@@ -729,10 +729,22 @@ function resolveInstalledPinnedDependencyVersion(params) {
   return readInstalledDependencyVersionFromRoot(depRoot);
 }
 
+function resolveNpmAliasVersion(spec) {
+  if (typeof spec !== "string") {
+    return null;
+  }
+  const match = spec.match(/^npm:.+@(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/u);
+  return match ? match[1] : null;
+}
+
 function resolvePinnedRuntimeDependencyVersion(params) {
   assertSafeRuntimeDependencySpec(params.depName, params.spec);
   if (exactVersionSpecRe.test(params.spec)) {
     return params.spec;
+  }
+  const aliasVersion = resolveNpmAliasVersion(params.spec);
+  if (aliasVersion && exactVersionSpecRe.test(aliasVersion)) {
+    return aliasVersion;
   }
   const installedVersion = resolveInstalledPinnedDependencyVersion(params);
   if (typeof installedVersion === "string" && exactVersionSpecRe.test(installedVersion)) {
