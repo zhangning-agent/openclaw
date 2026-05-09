@@ -1797,8 +1797,7 @@
       "@matrix-org/matrix-sdk-crypto-nodejs",
       "@tloncorp/api",
       "@tloncorp/tlon-skill",
-      "@whiskeysockets/baileys",
-      "@whiskeysockets/libsignal-node",
+      "@mofanke2/baileys",
       "authenticate-pam",
       "esbuild",
       "node-llama-cpp",
@@ -1822,7 +1821,7 @@
       }
     },
     "patchedDependencies": {
-      "@whiskeysockets/baileys@7.0.0-rc.9": "patches/@whiskeysockets__baileys@7.0.0-rc.9.patch",
+      "@mofanke2/baileys@7.0.0-rc.9": "patches/@mofanke2__baileys@7.0.0-rc.9.patch",
       "@agentclientprotocol/claude-agent-acp@0.32.0": "patches/@agentclientprotocol__claude-agent-acp@0.32.0.patch"
     }
   }
