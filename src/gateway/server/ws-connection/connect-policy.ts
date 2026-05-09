@@ -1,13 +1,20 @@
-import type { ConnectParams } from "../../protocol/index.js";
 import type { GatewayRole } from "../../role-policy.js";
 import { roleCanSkipDeviceIdentity } from "../../role-policy.js";
+
+type ConnectDevice = {
+  id: string;
+  publicKey: string;
+  signature: string;
+  signedAt: number;
+  nonce: string;
+};
 
 export type ControlUiAuthPolicy = {
   isControlUi: boolean;
   allowInsecureAuthConfigured: boolean;
   dangerouslyDisableDeviceAuth: boolean;
   allowBypass: boolean;
-  device: ConnectParams["device"] | null | undefined;
+  device: ConnectDevice | null | undefined;
 };
 
 export function resolveControlUiAuthPolicy(params: {
@@ -18,12 +25,12 @@ export function resolveControlUiAuthPolicy(params: {
         dangerouslyDisableDeviceAuth?: boolean;
       }
     | undefined;
-  deviceRaw: ConnectParams["device"] | null | undefined;
+  deviceRaw: ConnectDevice | null | undefined;
 }): ControlUiAuthPolicy {
   const allowInsecureAuthConfigured =
     params.isControlUi && params.controlUiConfig?.allowInsecureAuth === true;
   const dangerouslyDisableDeviceAuth =
-    params.isControlUi && params.controlUiConfig?.dangerouslyDisableDeviceAuth === true;
+    params.controlUiConfig?.dangerouslyDisableDeviceAuth === true;
   return {
     isControlUi: params.isControlUi,
     allowInsecureAuthConfigured,
@@ -41,7 +48,7 @@ export function shouldSkipControlUiPairing(
   authMode?: string,
   authMethod?: string,
 ): boolean {
-  if (trustedProxyAuthOk) {
+  if (trustedProxyAuthOk || (role === "operator" && authMode === "trusted-proxy")) {
     return true;
   }
   if (policy.isControlUi && role === "operator" && authMethod === "tailscale" && policy.device) {
@@ -71,7 +78,6 @@ export function isTrustedProxyControlUiOperatorAuth(params: {
   authMethod: string | undefined;
 }): boolean {
   return (
-    params.isControlUi &&
     params.role === "operator" &&
     params.authMode === "trusted-proxy" &&
     params.authOk &&
@@ -119,7 +125,7 @@ export function evaluateMissingDeviceIdentity(params: {
   if (params.hasDeviceIdentity) {
     return { kind: "allow" };
   }
-  if (params.isControlUi && params.trustedProxyAuthOk) {
+  if (params.trustedProxyAuthOk) {
     return { kind: "allow" };
   }
   if (params.isControlUi && params.controlUiAuthPolicy.allowBypass && params.role === "operator") {
