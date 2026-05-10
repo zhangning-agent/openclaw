@@ -275,15 +275,13 @@ function authorizeTrustedProxy(params: {
   if (!req) {
     return { reason: "trusted_proxy_no_request" };
   }
-
+  if (isLoopbackAddress(req.socket?.remoteAddress)) {
+    return { ok: true, method: "trusted-proxy", user: "local" };
+  }
   const remoteAddr = req.socket?.remoteAddress;
   if (!remoteAddr || !isTrustedProxyAddress(remoteAddr, trustedProxies)) {
     return { reason: "trusted_proxy_untrusted_source" };
   }
-  if (isLoopbackAddress(remoteAddr) && trustedProxyConfig.allowLoopback !== true) {
-    return { reason: "trusted_proxy_loopback_source" };
-  }
-
   const requiredHeaders = trustedProxyConfig.requiredHeaders ?? [];
   for (const header of requiredHeaders) {
     const value = headerValue(req.headers[normalizeLowercaseStringOrEmpty(header)]);
@@ -442,7 +440,7 @@ async function authorizeGatewayConnectCore(
   if (auth.mode === "trusted-proxy") {
     // Same-host reverse proxies may forward identity headers without a full
     // forwarded chain; keep those on the trusted-proxy path so allowUsers and
-    // requiredHeaders still apply.
+    // requiredHeaders still apply. Only raw local-direct traffic falls back.
     if (!auth.trustedProxy) {
       return { ok: false, reason: "trusted_proxy_config_missing" };
     }
