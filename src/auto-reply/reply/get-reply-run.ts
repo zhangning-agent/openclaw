@@ -46,6 +46,7 @@ import { SILENT_REPLY_TOKEN } from "../tokens.js";
 import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import { applySessionHints } from "./body.js";
 import type { buildCommandContext } from "./commands.js";
+import { resolveCurrentTurnImages } from "./current-turn-images.js";
 import type { InlineDirectives } from "./directive-handling.js";
 import { isSystemEventProvider } from "./effective-reply-route.js";
 import { shouldUseReplyFastTestRuntime } from "./get-reply-fast-path.js";
@@ -939,6 +940,12 @@ export async function runPreparedReply(
     normalizeOptionalString(preparedSessionState.sessionEntry?.modelOverride) ||
     normalizeOptionalString(preparedSessionState.sessionEntry?.providerOverride),
   );
+  const currentTurnImages = await resolveCurrentTurnImages({
+    ctx,
+    cfg,
+    images: opts?.images,
+    imageOrder: opts?.imageOrder,
+  });
   const followupRun = {
     prompt: queuedBody,
     transcriptPrompt: transcriptCommandBody,
@@ -946,8 +953,8 @@ export async function runPreparedReply(
     messageId: sessionCtx.MessageSidFull ?? sessionCtx.MessageSid,
     summaryLine: baseBodyTrimmedRaw,
     enqueuedAt: Date.now(),
-    images: opts?.images,
-    imageOrder: opts?.imageOrder,
+    images: currentTurnImages.images,
+    imageOrder: currentTurnImages.imageOrder,
     // Originating channel for reply routing.
     originatingChannel: ctx.OriginatingChannel,
     originatingTo: ctx.OriginatingTo,

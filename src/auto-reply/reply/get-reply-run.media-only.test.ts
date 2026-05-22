@@ -1,5 +1,8 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { importFreshModule } from "openclaw/plugin-sdk/test-fixtures";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearActiveEmbeddedRun,
   setActiveEmbeddedRun,
@@ -237,6 +240,8 @@ function ownerParams(): Parameters<typeof runPreparedReply>[0] {
 }
 
 describe("runPreparedReply media-only handling", () => {
+  const cleanupPaths: string[] = [];
+
   beforeAll(async () => {
     ({ runPreparedReply } = await import("./get-reply-run.js"));
     ({ runReplyAgent } = await import("./agent-runner.runtime.js"));
@@ -254,6 +259,11 @@ describe("runPreparedReply media-only handling", () => {
     updateSessionStore.mockReset();
     vi.clearAllMocks();
     replyRunTesting.resetReplyRunRegistry();
+  });
+
+  afterEach(() => {
+    const paths = cleanupPaths.splice(0);
+    return Promise.all(paths.map((entry) => rm(entry, { recursive: true, force: true })));
   });
 
   it("does not load session store runtime on module import", async () => {
@@ -767,6 +777,61 @@ describe("runPreparedReply media-only handling", () => {
     const call = vi.mocked(runReplyAgent).mock.calls[0]?.[0];
     expect(call?.followupRun.prompt).toContain("webchat:local");
     expect(call?.followupRun.prompt).toContain("[User sent media without caption]");
+  });
+
+  it("hydrates current image MediaPaths by extension when MediaTypes are missing or generic", async () => {
+    for (const mediaTypes of [undefined, ["application/octet-stream"]] as const) {
+      const tmpDir = await mkdtemp(path.join(os.tmpdir(), "openclaw-followup-image-"));
+      cleanupPaths.push(tmpDir);
+      const imagePath = path.join(tmpDir, "inbound.png");
+      await writeFile(
+        imagePath,
+        Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+          "base64",
+        ),
+      );
+
+      const result = await runPreparedReply(
+        baseParams({
+          ctx: {
+            Body: "describe this",
+            RawBody: "describe this",
+            CommandBody: "describe this",
+            MediaPaths: [imagePath],
+            MediaTypes: mediaTypes ? [...mediaTypes] : undefined,
+            MediaWorkspaceDir: tmpDir,
+            OriginatingChannel: "discord",
+            OriginatingTo: "C123",
+            ChatType: "group",
+          },
+          sessionCtx: {
+            Body: "describe this",
+            BodyStripped: "describe this",
+            Provider: "discord",
+            OriginatingChannel: "discord",
+            OriginatingTo: "C123",
+            ChatType: "group",
+            MediaPaths: [imagePath],
+            MediaTypes: mediaTypes ? [...mediaTypes] : undefined,
+            MediaWorkspaceDir: tmpDir,
+          },
+        }),
+      );
+
+      expect(result).toEqual({ text: "ok" });
+      const call = vi.mocked(runReplyAgent).mock.calls.at(-1)?.[0];
+      expect(call?.followupRun.images).toEqual([
+        {
+          type: "image",
+          data: expect.any(String),
+          mimeType: "image/png",
+        },
+      ]);
+      expect(call?.followupRun.images?.[0]?.data).toHaveLength(92);
+      expect(call?.followupRun.imageOrder).toEqual(["inline"]);
+    }
+    expect(vi.mocked(runReplyAgent)).toHaveBeenCalledTimes(2);
   });
 
   it("does not send a standalone reset notice for reply-producing /new turns", async () => {
