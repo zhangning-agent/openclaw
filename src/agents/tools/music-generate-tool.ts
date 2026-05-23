@@ -137,11 +137,13 @@ const MusicGenerateToolSchema = Type.Object({
 
 function resolveMusicGenerationModelConfigForTool(params: {
   cfg?: OpenClawConfig;
+  workspaceDir?: string;
   agentDir?: string;
   authStore?: AuthProfileStore;
 }): ToolModelConfig | null {
   return resolveCapabilityModelConfigForTool({
     cfg: params.cfg,
+    workspaceDir: params.workspaceDir,
     agentDir: params.agentDir,
     authStore: params.authStore,
     modelConfig: params.cfg?.agents?.defaults?.musicGenerationModel,
@@ -595,7 +597,11 @@ export function createMusicGenerateTool(options?: {
       const action = resolveAction(args);
 
       if (action === "list") {
-        return createMusicGenerateListActionResult(cfg);
+        return createMusicGenerateListActionResult(cfg, {
+          workspaceDir: options?.workspaceDir,
+          agentDir: options?.agentDir,
+          authStore: options?.authProfileStore,
+        });
       }
 
       if (action === "status") {
@@ -604,6 +610,7 @@ export function createMusicGenerateTool(options?: {
 
       const musicGenerationModelConfig = resolveMusicGenerationModelConfigForTool({
         cfg,
+        workspaceDir: options?.workspaceDir,
         agentDir: options?.agentDir,
         authStore: options?.authProfileStore,
       });

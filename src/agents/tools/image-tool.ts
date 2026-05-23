@@ -176,6 +176,8 @@ export function resolveImageModelConfigForTool(params: {
 
   return buildToolModelConfigFromCandidates({
     explicit,
+    cfg: params.cfg,
+    workspaceDir: params.workspaceDir,
     agentDir: params.agentDir,
     authStore: params.authStore,
     candidates: [...primaryCandidates, ...autoCandidates],

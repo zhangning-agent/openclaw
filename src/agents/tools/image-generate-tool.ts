@@ -199,11 +199,13 @@ function formatImageGenerationAuthHint(provider: {
 
 export function resolveImageGenerationModelConfigForTool(params: {
   cfg?: OpenClawConfig;
+  workspaceDir?: string;
   agentDir?: string;
   authStore?: AuthProfileStore;
 }): ToolModelConfig | null {
   return resolveCapabilityModelConfigForTool({
     cfg: params.cfg,
+    workspaceDir: params.workspaceDir,
     agentDir: params.agentDir,
     authStore: params.authStore,
     modelConfig: params.cfg?.agents?.defaults?.imageGenerationModel,
@@ -623,6 +625,7 @@ export function createImageGenerateTool(options?: {
                 providers: runtimeProviders,
                 provider,
                 cfg,
+                workspaceDir: options?.workspaceDir,
                 agentDir: options?.agentDir,
                 authStore: options?.authProfileStore,
               }),
@@ -675,6 +678,7 @@ export function createImageGenerateTool(options?: {
 
       const imageGenerationModelConfig = resolveImageGenerationModelConfigForTool({
         cfg,
+        workspaceDir: options?.workspaceDir,
         agentDir: options?.agentDir,
         authStore: options?.authProfileStore,
       });
