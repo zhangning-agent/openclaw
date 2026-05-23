@@ -6,6 +6,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
+- Agents/tools: honor configured custom provider API keys when deciding whether media, image-generation, video-generation, music-generation, and PDF tools are available. (#85570)
 - Release/plugin publishing: retry transient ClawHub CLI dependency install failures, keep preview-passing plugins publishable when one preview cell flakes, and verify every expected ClawHub package version after publish so maintenance releases are faster to recover and less likely to hide partial plugin publishes.
 - OpenAI: support `openai/chat-latest` as an explicit direct API-key model override for trying the moving ChatGPT Instant API alias without changing the stable default model.
 - Cron CLI: include computed `status` in `cron list --json` and `cron show --json` output so external tooling can read disabled/running/ok/error/skipped/idle state without reimplementing cron status derivation. (#78701) Thanks @aweiker.
