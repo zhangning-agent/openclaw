@@ -125,7 +125,7 @@ function resolveImageToolFactoryAvailable(params: {
   if (!params.agentDir?.trim()) {
     return false;
   }
-  if (params.modelHasVision || hasExplicitImageModelConfig(params.config)) {
+  if (hasExplicitImageModelConfig(params.config)) {
     return true;
   }
   const snapshot = loadCapabilityMetadataSnapshot({
@@ -674,6 +674,7 @@ export function createOpenClawTools(
 }
 
 export const __testing = {
+  resolveImageToolFactoryAvailable,
   resolveOptionalMediaToolFactoryPlan,
   setDepsForTest(overrides?: Partial<OpenClawToolsDeps>) {
     openClawToolsDeps = overrides

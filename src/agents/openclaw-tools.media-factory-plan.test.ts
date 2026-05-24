@@ -907,3 +907,50 @@ describe("optional media tool factory planning", () => {
     });
   });
 });
+
+describe("image tool factory availability", () => {
+  beforeEach(() => {
+    clearSecretsRuntimeSnapshot();
+  });
+
+  afterEach(() => {
+    clearCurrentPluginMetadataSnapshot();
+    clearSecretsRuntimeSnapshot();
+    setBundledPluginsDirOverrideForTest(undefined);
+    vi.unstubAllEnvs();
+  });
+
+  it("does not register the image tool from native model vision alone", () => {
+    const config: OpenClawConfig = {};
+    installSnapshot(config, []);
+
+    expect(
+      __testing.resolveImageToolFactoryAvailable({
+        config,
+        agentDir: "/tmp/openclaw-agent",
+        modelHasVision: true,
+        authStore: createAuthStore(),
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps the image tool when an explicit image model is configured", () => {
+    const config: OpenClawConfig = {
+      agents: {
+        defaults: {
+          imageModel: { primary: "openai/gpt-5.4-mini" },
+        },
+      },
+    };
+    installSnapshot(config, []);
+
+    expect(
+      __testing.resolveImageToolFactoryAvailable({
+        config,
+        agentDir: "/tmp/openclaw-agent",
+        modelHasVision: true,
+        authStore: createAuthStore(),
+      }),
+    ).toBe(true);
+  });
+});
