@@ -103,6 +103,7 @@ const runChannelPluginStartupMaintenance = vi.hoisted(() =>
 );
 const runStartupSessionMigration = vi.hoisted(() => vi.fn(async (_params: unknown) => undefined));
 vi.mock("../agents/agent-scope.js", () => ({
+  resolveAgentDir: () => "/agent",
   resolveAgentWorkspaceDir: () => "/workspace",
   resolveDefaultAgentId: () => "default",
 }));

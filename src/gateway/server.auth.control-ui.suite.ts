@@ -12,6 +12,7 @@ import {
   ensurePairedDeviceTokenForCurrentIdentity,
   GATEWAY_CLIENT_MODES,
   GATEWAY_CLIENT_NAMES,
+  NODE_CLIENT,
   onceMessage,
   openTailscaleWs,
   openWs,
@@ -275,6 +276,142 @@ export function registerControlUiAndPairingSuite(): void {
         } finally {
           ws.close();
         }
+      }
+    });
+  });
+
+  test("trusted-proxy node pairing requires signed device identity before approval", async () => {
+    const origin = "https://arkclaw.apigateway";
+    const { replaceConfigFile } = await import("../config/config.js");
+    const { approveDevicePairing, getPairedDevice, listDevicePairing } =
+      await import("../infra/device-pairing.js");
+    testState.gatewayAuth = undefined;
+    testState.gatewayControlUi = {
+      ...testState.gatewayControlUi,
+      allowedOrigins: [origin],
+      dangerouslyDisableDeviceAuth: true,
+    };
+    await replaceConfigFile({
+      nextConfig: {
+        gateway: {
+          auth: {
+            mode: "trusted-proxy",
+            trustedProxy: {
+              userHeader: "x-forwarded-user",
+              requiredHeaders: ["x-forwarded-proto"],
+            },
+          },
+          trustedProxies: ["127.0.0.1"],
+          controlUi: {
+            allowedOrigins: [origin],
+            dangerouslyDisableDeviceAuth: true,
+          },
+        },
+      },
+      afterWrite: { mode: "auto" },
+    });
+
+    await withControlUiGatewayServer(async ({ port }) => {
+      const headers = {
+        ...TRUSTED_PROXY_CONTROL_UI_HEADERS,
+        origin,
+        host: "sd7ipjn6q9kd1v2oma9hg.apigateway-cn-shanghai.volceapi.com",
+      };
+      const client = {
+        ...NODE_CLIENT,
+        displayName: "TV",
+        platform: "tv",
+        deviceFamily: "tv",
+        instanceId: "0e9140c373f5ff7aede991f15af0c853a6107b2ac3e1ee59e29db9a558f7ef98",
+      };
+
+      const missingDeviceWs = await openWs(port, headers);
+      try {
+        const missingDevice = await connectReq(missingDeviceWs, {
+          skipDefaultAuth: true,
+          role: "node",
+          scopes: [],
+          device: null,
+          client,
+        });
+        expect(missingDevice.ok).toBe(false);
+        expect(missingDevice.error?.message ?? "").toContain("device identity required");
+        expect((missingDevice.error?.details as { code?: string } | undefined)?.code).toBe(
+          ConnectErrorDetailCodes.DEVICE_IDENTITY_REQUIRED,
+        );
+        expect((await listDevicePairing()).pending).toEqual([]);
+      } finally {
+        missingDeviceWs.close();
+      }
+
+      const deviceIdentityPath = path.join(
+        os.tmpdir(),
+        `openclaw-trusted-proxy-node-${process.pid}-${process.env.VITEST_POOL_ID ?? "0"}.json`,
+      );
+      const pairingWs = await openWs(port, headers);
+      let requestId: string | undefined;
+      let deviceId: string | undefined;
+      try {
+        const pairing = await connectReq(pairingWs, {
+          skipDefaultAuth: true,
+          role: "node",
+          scopes: [],
+          client,
+          deviceIdentityPath,
+        });
+        expect(pairing.ok).toBe(false);
+        expect(pairing.error?.message ?? "").toContain("pairing required");
+        const details = pairing.error?.details as
+          | { code?: string; reason?: string; requestId?: string; deviceId?: string }
+          | undefined;
+        expect(details?.code).toBe(ConnectErrorDetailCodes.PAIRING_REQUIRED);
+        expect(details?.reason).toBe("not-paired");
+        expect(details?.requestId).toBeTruthy();
+        requestId = details?.requestId;
+        deviceId = details?.deviceId;
+
+        const pending = (await listDevicePairing()).pending.find(
+          (entry) => entry.requestId === requestId,
+        );
+        expect(pending).toMatchObject({
+          requestId,
+          deviceId,
+          displayName: "TV",
+          platform: "tv",
+          deviceFamily: "tv",
+          clientId: GATEWAY_CLIENT_NAMES.NODE_HOST,
+          clientMode: GATEWAY_CLIENT_MODES.NODE,
+          role: "node",
+          scopes: [],
+        });
+      } finally {
+        pairingWs.close();
+      }
+
+      expect(requestId).toBeTruthy();
+      const approval = await approveDevicePairing(requestId ?? "", { callerScopes: [] });
+      expect(approval?.status).toBe("approved");
+
+      const approvedWs = await openWs(port, headers);
+      try {
+        const approved = await connectReq(approvedWs, {
+          skipDefaultAuth: true,
+          role: "node",
+          scopes: [],
+          client,
+          deviceIdentityPath,
+        });
+        expect(approved.ok, JSON.stringify(approved)).toBe(true);
+        expect(
+          (approved.payload as { auth?: { role?: string; scopes?: string[] } } | undefined)?.auth,
+        ).toMatchObject({
+          role: "node",
+          scopes: [],
+        });
+        const paired = deviceId ? await getPairedDevice(deviceId) : null;
+        expect(paired?.tokens?.node?.token).toBeTruthy();
+      } finally {
+        approvedWs.close();
       }
     });
   });

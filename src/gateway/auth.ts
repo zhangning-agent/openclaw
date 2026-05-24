@@ -278,7 +278,7 @@ function authorizeTrustedProxy(params: {
 
   const remoteAddr = req.socket?.remoteAddress;
   if (isLoopbackAddress(remoteAddr)) {
-    return { user: "local" };
+    return { ok: true, method: "trusted-proxy", user: "local" };
   }
   if (!remoteAddr || !isTrustedProxyAddress(remoteAddr, trustedProxies)) {
     return { reason: "trusted_proxy_untrusted_source" };

@@ -1,0 +1,39 @@
+报错{"type": "res", "id": "init-3da420ae-32d9-4e16-bdf1-a64ed1f89d2b", "ok": false, "error": {"code": "NOT_PAIRED", "message": "device identity required", "details": {"code": "DEVICE_IDENTITY_REQUIRED"}}}社区版没有问题{'code': 'NOT_PAIRED', 'message': 'pairing required', 'details': {'code': 'PAIRING_REQUIRED', 'requestId': '5ac82631-9b80-41ab-8c25-93e3a4bbf844', 'reason': 'not-paired'}} 后续通过openclaw devices approve 配对。 
+
+这是我的gateway的配置，生产环境的
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "lan",
+    "controlUi": {
+      "allowedOrigins": [
+        "https://arkclaw.apigateway"
+      ],
+      "dangerouslyDisableDeviceAuth": true
+    },
+    "auth": {
+      "mode": "trusted-proxy",
+      "trustedProxy": {
+        "userHeader": "x-forwarded-user"
+      },
+      "password": "9af5a830ad09099cb9ca4f5312111bdc563c28416f73bc2c"
+    },
+    "trustedProxies": [
+      "127.0.0.1",
+      "172.31.0.0/16",
+      "66.63.0.0/16"
+    ],
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "nodes": {
+      "browser": {
+        "mode": "off"
+      }
+    }
+  },
+
+  现在问题是，我改了这些代码之后，导致 {"0":"{\"subsystem\":\"gateway/ws\"}","1":{"cause":"device-required","handshake":"failed","durationMs":73,"lastFrameType":"req","lastFrameMethod":"connect","lastFrameId":"init-95ed227f-f351-4b6e-a8f9-d063fa048cd7","host":"sd7ipjn6q9kd1v2oma9hg.apigateway-cn-shanghai.volceapi.com","origin":"https://arkclaw.apigateway","userAgent":"Python/3.13 websockets/12.0","forwardedFor":"114.251.196.103","remoteAddr":"66.63.32.122","remotePort":51102,"localAddr":"66.63.14.44","localPort":18789,"endpoint":"66.63.32.122:51102->66.63.14.44:18789","client":"node-host","clientDisplayName":"TV","mode":"node","version":"1.0.0","platform":"tv","deviceFamily":"tv","instanceId":"0e9140c373f5ff7aede991f15af0c853a6107b2ac3e1ee59e29db9a558f7ef98"},"2":"closed before connect conn=bd8c6078-7ebb-4f87-9d9d-0205e90830bb peer=66.63.32.122:51102->66.63.14.44:18789 remote=66.63.32.122 fwd=114.251.196.103 origin=https://arkclaw.apigateway host=sd7ipjn6q9kd1v2oma9hg.apigateway-cn-shanghai.volceapi.com ua=Python/3.13 websockets/12.0 code=1008 reason=device identity required","_meta":{"runtime":"node","runtimeVersion":"22.22.0","hostname":"unknown","name":"{\"subsystem\":\"gateway/ws\"}","parentNames":["openclaw"],"date":"2026-05-20T08:02:55.079Z","logLevelId":4,"logLevelName":"WARN","path":{"fullFilePath":"file:///usr/lib/node_modules/openclaw/dist/subsystem-CxWoQXRD.js:149:51","fileName":"subsystem-CxWoQXRD.js","fileNameWithLine":"subsystem-CxWoQXRD.js:149","fileColumn":"51","fileLine":"149","filePath":"/usr/lib/node_modules/openclaw/dist/subsystem-CxWoQXRD.js","filePathWithLine":"/usr/lib/node_modules/openclaw/dist/subsystem-CxWoQXRD.js:149","method":"logToFile"}},"time":"2026-05-20T16:02:55.079+08:00","hostname":"arkclaw","message":"closed before connect conn=bd8c6078-7ebb-4f87-9d9d-0205e90830bb peer=66.63.32.122:51102->66.63.14.44:18789 remote=66.63.32.122 fwd=114.251.196.103 origin=https://arkclaw.apigateway host=sd7ipjn6q9kd1v2oma9hg.apigateway-cn-shanghai.volceapi.com ua=Python/3.13 websockets/12.0 code=1008 reason=device identity required"}
+
+导致node无法配对了。帮我分析可能的原因，本地构造环境，帮我测试node 配对

@@ -30,7 +30,7 @@ export function resolveControlUiAuthPolicy(params: {
   const allowInsecureAuthConfigured =
     params.isControlUi && params.controlUiConfig?.allowInsecureAuth === true;
   const dangerouslyDisableDeviceAuth =
-    params.controlUiConfig?.dangerouslyDisableDeviceAuth === true;
+    params.isControlUi && params.controlUiConfig?.dangerouslyDisableDeviceAuth === true;
   return {
     isControlUi: params.isControlUi,
     allowInsecureAuthConfigured,

@@ -159,6 +159,7 @@ vi.mock("../agents/agent-paths.js", () => ({
 }));
 
 vi.mock("../agents/agent-scope.js", () => ({
+  resolveAgentDir: vi.fn(() => "/tmp/openclaw-agent"),
   resolveAgentWorkspaceDir: vi.fn(() => "/tmp/openclaw-workspace"),
   resolveDefaultAgentId: vi.fn(() => "default"),
 }));
