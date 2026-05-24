@@ -416,6 +416,57 @@ export function registerControlUiAndPairingSuite(): void {
     });
   });
 
+  test("local operator TUI and CLI connections skip device pairing even when they send device identity", async () => {
+    const { getPairedDevice, listDevicePairing } = await import("../infra/device-pairing.js");
+    const { server, port, prevToken } = await startControlUiServer("secret");
+    const cases = [
+      {
+        prefix: "openclaw-local-tui-operator-",
+        client: {
+          id: GATEWAY_CLIENT_NAMES.TUI,
+          version: "1.0.0",
+          platform: "darwin",
+          mode: GATEWAY_CLIENT_MODES.UI,
+        },
+      },
+      {
+        prefix: "openclaw-local-cron-cli-",
+        client: {
+          id: GATEWAY_CLIENT_NAMES.CLI,
+          version: "1.0.0",
+          platform: "linux",
+          mode: GATEWAY_CLIENT_MODES.CLI,
+        },
+      },
+    ];
+    try {
+      for (const tc of cases) {
+        const { identityPath, identity } = await createOperatorIdentityFixture(tc.prefix);
+        const ws = await openWs(port);
+        try {
+          const res = await connectReq(ws, {
+            token: "secret",
+            role: "operator",
+            scopes: ["operator.admin"],
+            client: tc.client,
+            deviceIdentityPath: identityPath,
+          });
+          expect(res.ok, tc.client.id).toBe(true);
+          const pending = (await listDevicePairing()).pending.filter(
+            (entry) => entry.deviceId === identity.deviceId,
+          );
+          expect(pending, tc.client.id).toEqual([]);
+          expect(await getPairedDevice(identity.deviceId), tc.client.id).toBeNull();
+        } finally {
+          ws.close();
+        }
+      }
+    } finally {
+      await server.close();
+      restoreGatewayToken(prevToken);
+    }
+  });
+
   test("rejects trusted-proxy control ui without device identity even with self-declared scopes", async () => {
     await configureTrustedProxyControlUiAuth();
     const { publicKeyRawBase64UrlFromPem } = await import("../infra/device-identity.js");

@@ -10,6 +10,7 @@ import {
   resolveUnauthorizedHandshakeContext,
   shouldAllowSilentLocalPairing,
   shouldSkipLocalBackendSelfPairing,
+  shouldSkipLocalOperatorDevicePairing,
 } from "./handshake-auth-helpers.js";
 
 function createRateLimiter(): AuthRateLimiter {
@@ -697,5 +698,53 @@ describe("handshake auth helpers", () => {
         authMethod: "token",
       }),
     ).toBe("cli_container_local");
+  });
+
+  it("skips device pairing only for local operator clients authenticated by shared auth", () => {
+    expect(
+      shouldSkipLocalOperatorDevicePairing({
+        role: "operator",
+        locality: "direct_local",
+        hasBrowserOriginHeader: false,
+        sharedAuthOk: true,
+        authMethod: "trusted-proxy",
+      }),
+    ).toBe(true);
+    expect(
+      shouldSkipLocalOperatorDevicePairing({
+        role: "operator",
+        locality: "cli_container_local",
+        hasBrowserOriginHeader: false,
+        sharedAuthOk: true,
+        authMethod: "token",
+      }),
+    ).toBe(true);
+    expect(
+      shouldSkipLocalOperatorDevicePairing({
+        role: "node",
+        locality: "direct_local",
+        hasBrowserOriginHeader: false,
+        sharedAuthOk: true,
+        authMethod: "trusted-proxy",
+      }),
+    ).toBe(false);
+    expect(
+      shouldSkipLocalOperatorDevicePairing({
+        role: "operator",
+        locality: "remote",
+        hasBrowserOriginHeader: false,
+        sharedAuthOk: true,
+        authMethod: "token",
+      }),
+    ).toBe(false);
+    expect(
+      shouldSkipLocalOperatorDevicePairing({
+        role: "operator",
+        locality: "direct_local",
+        hasBrowserOriginHeader: true,
+        sharedAuthOk: true,
+        authMethod: "token",
+      }),
+    ).toBe(false);
   });
 });

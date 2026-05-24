@@ -271,6 +271,28 @@ export function shouldSkipLocalBackendSelfPairing(params: {
   );
 }
 
+export function shouldSkipLocalOperatorDevicePairing(params: {
+  role: string;
+  locality: PairingLocalityKind;
+  hasBrowserOriginHeader: boolean;
+  sharedAuthOk: boolean;
+  authMethod: GatewayAuthResult["method"];
+}): boolean {
+  const usesOperatorSharedAuth =
+    params.authMethod === "token" ||
+    params.authMethod === "password" ||
+    params.authMethod === "trusted-proxy";
+  return (
+    params.role === "operator" &&
+    params.sharedAuthOk &&
+    usesOperatorSharedAuth &&
+    !params.hasBrowserOriginHeader &&
+    (params.locality === "direct_local" ||
+      params.locality === "cli_container_local" ||
+      params.locality === "shared_secret_loopback_local")
+  );
+}
+
 function resolveSignatureToken(connectParams: ConnectParams): string | null {
   return (
     connectParams.auth?.token ??

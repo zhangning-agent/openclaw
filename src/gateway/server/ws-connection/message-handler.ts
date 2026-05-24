@@ -135,6 +135,7 @@ import {
   resolveUnauthorizedHandshakeContext,
   shouldAllowSilentLocalPairing,
   shouldSkipLocalBackendSelfPairing,
+  shouldSkipLocalOperatorDevicePairing,
 } from "./handshake-auth-helpers.js";
 import { isUnauthorizedRoleError, UnauthorizedFloodGuard } from "./unauthorized-flood-guard.js";
 
@@ -649,6 +650,13 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           sharedAuthOk,
           authMethod,
         });
+        let skipLocalOperatorDevicePairing = shouldSkipLocalOperatorDevicePairing({
+          role,
+          locality: pairingLocality,
+          hasBrowserOriginHeader,
+          sharedAuthOk,
+          authMethod,
+        });
         const handleMissingDeviceIdentity = (): boolean => {
           const trustedProxyAuthOk = isTrustedProxyControlUiOperatorAuth({
             isControlUi,
@@ -833,6 +841,13 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           sharedAuthOk,
           authMethod,
         });
+        skipLocalOperatorDevicePairing = shouldSkipLocalOperatorDevicePairing({
+          role,
+          locality: pairingLocality,
+          hasBrowserOriginHeader,
+          sharedAuthOk,
+          authMethod,
+        });
         if (!authOk) {
           rejectUnauthorized(authResult);
           return;
@@ -877,7 +892,7 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
           authMethod,
         );
         let hasServerApprovedDeviceTokenBaseline = false;
-        if (device && devicePublicKey) {
+        if (device && devicePublicKey && !skipLocalOperatorDevicePairing) {
           const formatAuditList = (items: string[] | undefined): string => {
             if (!items || items.length === 0) {
               return "<none>";
