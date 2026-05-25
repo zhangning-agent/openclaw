@@ -15,6 +15,29 @@ import {
 import { hasProviderAuthForTool, resolveDefaultModelRef } from "./model-config.helpers.js";
 import { coercePdfModelConfig } from "./pdf-tool.helpers.js";
 
+function resolvePdfDefaultMediaModel(params: {
+  cfg?: OpenClawConfig;
+  workspaceDir?: string;
+  providerId: string;
+}): string | undefined {
+  return resolveDefaultMediaModel({
+    cfg: isMinimaxVlmProvider(params.providerId) ? undefined : params.cfg,
+    workspaceDir: params.workspaceDir,
+    providerId: params.providerId,
+    capability: "image",
+  });
+}
+
+function resolvePdfProviderVisionModelFromConfig(params: {
+  cfg?: OpenClawConfig;
+  provider: string;
+}): string | null {
+  if (isMinimaxVlmProvider(params.provider)) {
+    return null;
+  }
+  return resolveProviderVisionModelFromConfig(params);
+}
+
 function resolveImageCandidateRefs(params: {
   cfg?: OpenClawConfig;
   agentDir: string;
@@ -39,15 +62,14 @@ function resolveImageCandidateRefs(params: {
     )
     .map((providerId) => {
       const modelId =
-        resolveProviderVisionModelFromConfig({
+        resolvePdfProviderVisionModelFromConfig({
           cfg: params.cfg,
           provider: providerId,
         })?.split("/")[1] ??
-        resolveDefaultMediaModel({
+        resolvePdfDefaultMediaModel({
           cfg: params.cfg,
           workspaceDir: params.workspaceDir,
           providerId,
-          capability: "image",
         });
       return modelId ? `${providerId}/${modelId}` : null;
     })
@@ -102,17 +124,16 @@ export function resolvePdfModelConfigForTool(params: {
     agentDir: params.agentDir,
     authStore: params.authStore,
   });
-  const providerVision = resolveProviderVisionModelFromConfig({
+  const providerVision = resolvePdfProviderVisionModelFromConfig({
     cfg: params.cfg,
     provider: primary.provider,
   });
   const providerDefault =
     providerVision?.split("/")[1] ??
-    resolveDefaultMediaModel({
+    resolvePdfDefaultMediaModel({
       cfg: params.cfg,
       workspaceDir: params.workspaceDir,
       providerId: primary.provider,
-      capability: "image",
     });
   const primarySupportsNativePdf = providerSupportsNativePdfDocument({
     cfg: params.cfg,

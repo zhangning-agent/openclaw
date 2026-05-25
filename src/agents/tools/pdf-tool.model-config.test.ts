@@ -32,6 +32,9 @@ vi.mock("./model-config.helpers.js", () => ({
     if (provider === "google") {
       return Boolean(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY);
     }
+    if (provider === "minimax") {
+      return Boolean(process.env.MINIMAX_API_KEY);
+    }
     return false;
   },
   resolveDefaultModelRef: (cfg?: OpenClawConfig) => {
