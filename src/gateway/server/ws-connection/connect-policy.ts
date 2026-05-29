@@ -23,7 +23,7 @@ export function resolveControlUiAuthPolicy(params: {
   const allowInsecureAuthConfigured =
     params.isControlUi && params.controlUiConfig?.allowInsecureAuth === true;
   const dangerouslyDisableDeviceAuth =
-    params.isControlUi && params.controlUiConfig?.dangerouslyDisableDeviceAuth === true;
+    params.controlUiConfig?.dangerouslyDisableDeviceAuth === true;
   return {
     isControlUi: params.isControlUi,
     allowInsecureAuthConfigured,
@@ -41,7 +41,7 @@ export function shouldSkipControlUiPairing(
   authMode?: string,
   authMethod?: string,
 ): boolean {
-  if (trustedProxyAuthOk) {
+  if (trustedProxyAuthOk || (role === "operator" && authMode === "trusted-proxy")) {
     return true;
   }
   if (policy.isControlUi && role === "operator" && authMethod === "tailscale" && policy.device) {
@@ -71,7 +71,6 @@ export function isTrustedProxyControlUiOperatorAuth(params: {
   authMethod: string | undefined;
 }): boolean {
   return (
-    params.isControlUi &&
     params.role === "operator" &&
     params.authMode === "trusted-proxy" &&
     params.authOk &&
@@ -119,7 +118,7 @@ export function evaluateMissingDeviceIdentity(params: {
   if (params.hasDeviceIdentity) {
     return { kind: "allow" };
   }
-  if (params.isControlUi && params.trustedProxyAuthOk) {
+  if (params.trustedProxyAuthOk) {
     return { kind: "allow" };
   }
   if (params.isControlUi && params.controlUiAuthPolicy.allowBypass && params.role === "operator") {

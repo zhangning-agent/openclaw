@@ -142,6 +142,14 @@ export function isLocalDirectRequest(
   if (!req) {
     return false;
   }
+  if (
+    !req.headers["x-forwarded-for"] &&
+    !req.headers["x-real-ip"] &&
+    !req.headers["x-forwarded-host"] &&
+    isLoopbackAddress(req.socket?.remoteAddress)
+  ) {
+    return true;
+  }
   if (!hasForwardedRequestHeaders(req)) {
     return isLoopbackAddress(req.socket?.remoteAddress);
   }
@@ -277,6 +285,9 @@ function authorizeTrustedProxy(params: {
   }
 
   const remoteAddr = req.socket?.remoteAddress;
+  if (isLoopbackAddress(remoteAddr)) {
+    return { user: "local" };
+  }
   if (!remoteAddr || !isTrustedProxyAddress(remoteAddr, trustedProxies)) {
     return { reason: "trusted_proxy_untrusted_source" };
   }
