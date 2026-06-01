@@ -408,6 +408,38 @@ export function registerControlUiAndPairingSuite(): void {
     }
   });
 
+  test("preserves local trusted-proxy scopes for TUI and backend clients", async () => {
+    await configureTrustedProxyControlUiAuth();
+    await withControlUiGatewayServer(async ({ port }) => {
+      const tuiWs = await openWs(port);
+      const backendWs = await openWs(port);
+      try {
+        await connectControlUiWithoutDeviceAndExpectOk({
+          ws: tuiWs,
+          client: {
+            id: GATEWAY_CLIENT_NAMES.TUI,
+            version: "1.0.0",
+            platform: "darwin",
+            mode: GATEWAY_CLIENT_MODES.UI,
+          },
+        });
+
+        const backendConnect = await connectReq(backendWs, {
+          skipDefaultAuth: true,
+          device: null,
+          client: BACKEND_GATEWAY_CLIENT,
+          scopes: ["operator.read"],
+        });
+        expect(backendConnect.ok).toBe(true);
+        const nodeList = await rpcReq(backendWs, "node.list", {});
+        expect(nodeList.ok).toBe(true);
+      } finally {
+        tuiWs.close();
+        backendWs.close();
+      }
+    });
+  });
+
   test("allows control ui password-only auth on localhost when insecure auth is enabled", async () => {
     testState.gatewayControlUi = { allowInsecureAuth: true };
     testState.gatewayAuth = { mode: "password", password: "secret" }; // pragma: allowlist secret

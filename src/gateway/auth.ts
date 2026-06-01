@@ -142,16 +142,6 @@ export function isLocalDirectRequest(
   if (!req) {
     return false;
   }
-  if (
-    !Boolean(
-      req.headers?.["x-forwarded-for"] ||
-        req.headers?.["x-real-ip"] ||
-        req.headers?.["x-forwarded-host"],
-    ) &&
-    isLoopbackAddress(req.socket?.remoteAddress)
-  ) {
-    return true;
-  }
   if (!hasForwardedRequestHeaders(req)) {
     return isLoopbackAddress(req.socket?.remoteAddress);
   }
@@ -287,13 +277,29 @@ function authorizeTrustedProxy(params: {
   }
 
   const remoteAddr = req.socket?.remoteAddress;
-  if (isLoopbackAddress(remoteAddr)) {
-    return { ok: true, method: "trusted-proxy", user: "local" } ;
+  const userHeaderValue = headerValue(
+    req.headers[normalizeLowercaseStringOrEmpty(trustedProxyConfig.userHeader)],
+  );
+  const requiredHeaders = trustedProxyConfig.requiredHeaders ?? [];
+  const hasTrustedProxyHeaderEvidence =
+    Boolean(userHeaderValue?.trim()) ||
+    requiredHeaders.some((header) => {
+      const value = headerValue(req.headers[normalizeLowercaseStringOrEmpty(header)]);
+      return Boolean(value?.trim());
+    });
+  if (
+    isLoopbackAddress(remoteAddr) &&
+    !hasForwardedRequestHeaders(req) &&
+    !hasTrustedProxyHeaderEvidence
+  ) {
+    return { user: "local" };
   }
   if (!remoteAddr || !isTrustedProxyAddress(remoteAddr, trustedProxies)) {
     return { reason: "trusted_proxy_untrusted_source" };
   }
-  const requiredHeaders = trustedProxyConfig.requiredHeaders ?? [];
+  if (isLoopbackAddress(remoteAddr) && trustedProxyConfig.allowLoopback !== true) {
+    return { reason: "trusted_proxy_loopback_source" };
+  }
   for (const header of requiredHeaders) {
     const value = headerValue(req.headers[normalizeLowercaseStringOrEmpty(header)]);
     if (!value || value.trim() === "") {
@@ -301,9 +307,6 @@ function authorizeTrustedProxy(params: {
     }
   }
 
-  const userHeaderValue = headerValue(
-    req.headers[normalizeLowercaseStringOrEmpty(trustedProxyConfig.userHeader)],
-  );
   if (!userHeaderValue || userHeaderValue.trim() === "") {
     return { reason: "trusted_proxy_user_missing" };
   }

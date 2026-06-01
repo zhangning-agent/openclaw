@@ -662,6 +662,12 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
             controlUiAuthPolicy.allowInsecureAuthConfigured &&
             isLocalClient &&
             (authMethod === "token" || authMethod === "password");
+          const preserveLocalTrustedProxyOperatorScopes =
+            authMethod === "trusted-proxy" &&
+            role === "operator" &&
+            isLoopbackAddress(remoteAddr) &&
+            !hasProxyHeaders &&
+            (isControlUi || connectParams.client.id === GATEWAY_CLIENT_IDS.GATEWAY_CLIENT);
           const decision = evaluateMissingDeviceIdentity({
             hasDeviceIdentity: Boolean(device),
             role,
@@ -683,7 +689,8 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
             shouldClearUnboundScopesForMissingDeviceIdentity({
               decision,
               controlUiAuthPolicy,
-              preserveInsecureLocalControlUiScopes,
+              preserveInsecureLocalControlUiScopes:
+                preserveInsecureLocalControlUiScopes || preserveLocalTrustedProxyOperatorScopes,
               authMethod,
               trustedProxyAuthOk,
             })
