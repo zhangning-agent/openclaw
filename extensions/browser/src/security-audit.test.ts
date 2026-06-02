@@ -35,6 +35,74 @@ describe("browser security audit collector", () => {
     );
   });
 
+  it("does not flag valid trusted-proxy browser control without password", () => {
+    const findings = collectFindings({
+      gateway: {
+        auth: {
+          mode: "trusted-proxy",
+          trustedProxy: { userHeader: "x-forwarded-user" },
+        },
+      },
+      browser: {
+        enabled: true,
+      },
+    });
+
+    expect(findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          checkId: "browser.control_no_auth",
+        }),
+      ]),
+    );
+  });
+
+  it("flags trusted-proxy browser control when proxy identity config is missing", () => {
+    const findings = collectFindings({
+      gateway: {
+        auth: {
+          mode: "trusted-proxy",
+          token: "inactive-token",
+        },
+      },
+      browser: {
+        enabled: true,
+      },
+    });
+
+    expect(findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          checkId: "browser.control_no_auth",
+          severity: "critical",
+        }),
+      ]),
+    );
+  });
+
+  it("does not flag trusted-proxy browser control with password SecretRef", () => {
+    const findings = collectFindings({
+      gateway: {
+        auth: {
+          mode: "trusted-proxy",
+          password: { source: "env", provider: "default", id: "BROWSER_PASSWORD" },
+          trustedProxy: { userHeader: "x-forwarded-user" },
+        },
+      },
+      browser: {
+        enabled: true,
+      },
+    });
+
+    expect(findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          checkId: "browser.control_no_auth",
+        }),
+      ]),
+    );
+  });
+
   it("warns on remote http CDP profiles", () => {
     const findings = collectFindings({
       browser: {

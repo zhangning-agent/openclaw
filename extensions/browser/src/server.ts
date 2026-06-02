@@ -10,6 +10,7 @@ import { deleteBridgeAuthForPort, setBridgeAuthForPort } from "./browser/bridge-
 import { loadBrowserConfigForRuntimeRefresh } from "./browser/config-refresh-source.js";
 import { resolveBrowserConfig } from "./browser/config.js";
 import {
+  allowsEmptyBrowserControlAuth,
   ensureBrowserControlAuth,
   resolveBrowserControlAuth,
   shouldAutoGenerateBrowserAuth,
@@ -45,10 +46,12 @@ export async function startBrowserControlServerFromConfig(): Promise<BrowserServ
   }
 
   let browserAuth = resolveBrowserControlAuth(cfg);
+  let browserAuthCfg = cfg;
   let browserAuthBootstrapFailed = false;
   try {
     const ensured = await ensureBrowserControlAuth({ cfg });
     browserAuth = ensured.auth;
+    browserAuthCfg = getRuntimeConfig();
     if (ensured.generatedToken) {
       logServer.info(
         "No browser auth configured; generated browser control auth credential automatically.",
@@ -59,8 +62,10 @@ export async function startBrowserControlServerFromConfig(): Promise<BrowserServ
     browserAuthBootstrapFailed = true;
   }
 
+  const allowsEmptyBrowserAuth = allowsEmptyBrowserControlAuth(browserAuthCfg);
   const browserAuthRequired =
-    browserAuthBootstrapFailed || shouldAutoGenerateBrowserAuth(process.env);
+    !allowsEmptyBrowserAuth &&
+    (browserAuthBootstrapFailed || shouldAutoGenerateBrowserAuth(process.env));
   if (browserAuthRequired && !browserAuth.token && !browserAuth.password) {
     if (browserAuthBootstrapFailed) {
       logServer.error(
