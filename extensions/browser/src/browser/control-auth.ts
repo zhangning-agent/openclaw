@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import { hasConfiguredSecretInput } from "openclaw/plugin-sdk/secret-input";
+import { resolveRequiredConfiguredSecretRefInputString } from "openclaw/plugin-sdk/secret-input-runtime";
 import {
   normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
@@ -50,19 +52,41 @@ export function shouldAutoGenerateBrowserAuth(env: NodeJS.ProcessEnv): boolean {
   return true;
 }
 
-function hasExplicitNonStringGatewayCredentialForMode(params: {
-  cfg?: OpenClawConfig;
-  mode: "none" | "trusted-proxy";
-}): boolean {
-  const { cfg, mode } = params;
+function hasExplicitNonStringGatewayToken(cfg?: OpenClawConfig): boolean {
   const auth = cfg?.gateway?.auth;
-  if (!auth) {
-    return false;
+  return auth?.token != null && typeof auth.token !== "string";
+}
+
+export function hasConfiguredBrowserControlPasswordInput(cfg?: OpenClawConfig): boolean {
+  return hasConfiguredSecretInput(cfg?.gateway?.auth?.password, cfg?.secrets?.defaults);
+}
+
+export function allowsEmptyBrowserControlAuth(cfg?: OpenClawConfig): boolean {
+  const trustedProxy = cfg?.gateway?.auth?.trustedProxy;
+  return (
+    cfg?.gateway?.auth?.mode === "trusted-proxy" &&
+    typeof trustedProxy?.userHeader === "string" &&
+    trustedProxy.userHeader.trim().length > 0 &&
+    !hasConfiguredBrowserControlPasswordInput(cfg)
+  );
+}
+
+async function resolveTrustedProxyBrowserPasswordRef(params: {
+  cfg: OpenClawConfig;
+  env: NodeJS.ProcessEnv;
+}): Promise<BrowserControlAuth> {
+  if (params.cfg.gateway?.auth?.mode !== "trusted-proxy") {
+    return {};
   }
-  if (mode === "none") {
-    return auth.token != null && typeof auth.token !== "string";
-  }
-  return auth.password != null && typeof auth.password !== "string";
+  const password = normalizeOptionalString(
+    await resolveRequiredConfiguredSecretRefInputString({
+      config: params.cfg,
+      env: params.env,
+      value: params.cfg.gateway.auth.password,
+      path: "gateway.auth.password",
+    }),
+  );
+  return password ? { password } : {};
 }
 
 function generateBrowserControlToken(): string {
@@ -104,41 +128,6 @@ async function generateAndPersistBrowserControlToken(params: {
   return { auth: { token }, generatedToken: token };
 }
 
-async function generateAndPersistBrowserControlPassword(params: {
-  cfg: OpenClawConfig;
-  env: NodeJS.ProcessEnv;
-}): Promise<{
-  auth: BrowserControlAuth;
-  generatedToken?: string;
-}> {
-  const password = generateBrowserControlToken();
-  const nextCfg: OpenClawConfig = {
-    ...params.cfg,
-    gateway: {
-      ...params.cfg.gateway,
-      auth: {
-        ...params.cfg.gateway?.auth,
-        password,
-      },
-    },
-  };
-  await replaceConfigFile({
-    nextConfig: nextCfg,
-    afterWrite: { mode: "auto" },
-  });
-
-  // Re-read to stay consistent with any concurrent config writer.
-  const persistedAuth = resolveBrowserControlAuth(getRuntimeConfig(), params.env);
-  if (persistedAuth.token || persistedAuth.password) {
-    return {
-      auth: persistedAuth,
-      generatedToken: persistedAuth.password === password ? password : undefined,
-    };
-  }
-
-  return { auth: { password }, generatedToken: password };
-}
-
 export async function ensureBrowserControlAuth(params: {
   cfg: OpenClawConfig;
   env?: NodeJS.ProcessEnv;
@@ -170,22 +159,17 @@ export async function ensureBrowserControlAuth(params: {
     return { auth: latestAuth };
   }
   const latestMode = latestCfg.gateway?.auth?.mode;
-  if (latestMode === "none" || latestMode === "trusted-proxy") {
-    if (
-      hasExplicitNonStringGatewayCredentialForMode({
-        cfg: latestCfg,
-        mode: latestMode,
-      })
-    ) {
+  if (latestMode === "trusted-proxy") {
+    if (hasConfiguredBrowserControlPasswordInput(latestCfg)) {
+      return { auth: await resolveTrustedProxyBrowserPasswordRef({ cfg: latestCfg, env }) };
+    }
+    return { auth: latestAuth };
+  }
+  if (latestMode === "none") {
+    if (hasExplicitNonStringGatewayToken(latestCfg)) {
       // Avoid silently overwriting SecretRef-style gateway auth inputs with generated plaintext.
       // Startup will fail closed if no resolved browser auth is available.
       return { auth: latestAuth };
-    }
-    if (latestMode === "trusted-proxy") {
-      // gateway.auth.mode=trusted-proxy must never be persisted with gateway.auth.token.
-      // Persist a browser-only shared secret through gateway.auth.password instead so
-      // out-of-process loopback clients can resolve it from config/env.
-      return await generateAndPersistBrowserControlPassword({ cfg: latestCfg, env });
     }
     return await generateAndPersistBrowserControlToken({ cfg: latestCfg, env });
   }

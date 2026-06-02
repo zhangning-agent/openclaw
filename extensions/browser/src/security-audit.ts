@@ -4,7 +4,11 @@ import { formatCliCommand } from "openclaw/plugin-sdk/setup-tools";
 import { isPrivateNetworkOptInEnabled, isPrivateIpAddress } from "openclaw/plugin-sdk/ssrf-policy";
 import { normalizeLowercaseStringOrEmpty } from "openclaw/plugin-sdk/text-runtime";
 import { redactCdpUrl, resolveBrowserConfig, resolveProfile } from "./browser/config.js";
-import { resolveBrowserControlAuth } from "./browser/control-auth.js";
+import {
+  allowsEmptyBrowserControlAuth,
+  hasConfiguredBrowserControlPasswordInput,
+  resolveBrowserControlAuth,
+} from "./browser/control-auth.js";
 import { hasNonEmptyString } from "./record-shared.js";
 
 const BLOCKED_HOSTNAMES = new Set([
@@ -47,25 +51,23 @@ export function collectBrowserSecurityAuditFindings(ctx: OpenClawPluginSecurityA
 
   const browserAuth = resolveBrowserControlAuth(ctx.config, ctx.env);
   const explicitAuthMode = ctx.config.gateway?.auth?.mode;
+  const trustedProxyMode = explicitAuthMode === "trusted-proxy";
   const tokenConfigured =
-    Boolean(browserAuth.token) ||
-    hasNonEmptyString(ctx.env.OPENCLAW_GATEWAY_TOKEN) ||
-    hasConfiguredSecretInput(ctx.config.gateway?.auth?.token, ctx.config.secrets?.defaults);
+    !trustedProxyMode &&
+    (Boolean(browserAuth.token) ||
+      hasNonEmptyString(ctx.env.OPENCLAW_GATEWAY_TOKEN) ||
+      hasConfiguredSecretInput(ctx.config.gateway?.auth?.token, ctx.config.secrets?.defaults));
   const passwordCanWin =
     explicitAuthMode === "password" ||
-    (explicitAuthMode !== "token" &&
-      explicitAuthMode !== "none" &&
-      explicitAuthMode !== "trusted-proxy" &&
-      !tokenConfigured);
+    trustedProxyMode ||
+    (explicitAuthMode !== "token" && explicitAuthMode !== "none" && !tokenConfigured);
   const passwordConfigured =
     Boolean(browserAuth.password) ||
     (passwordCanWin &&
       (hasNonEmptyString(ctx.env.OPENCLAW_GATEWAY_PASSWORD) ||
-        hasConfiguredSecretInput(
-          ctx.config.gateway?.auth?.password,
-          ctx.config.secrets?.defaults,
-        )));
-  if (!tokenConfigured && !passwordConfigured) {
+        hasConfiguredBrowserControlPasswordInput(ctx.config)));
+  const emptyAuthAllowed = allowsEmptyBrowserControlAuth(ctx.config);
+  if (!emptyAuthAllowed && !tokenConfigured && !passwordConfigured) {
     findings.push({
       checkId: "browser.control_no_auth",
       severity: "critical" as const,
@@ -74,7 +76,7 @@ export function collectBrowserSecurityAuditFindings(ctx: OpenClawPluginSecurityA
         "Browser control HTTP routes are enabled but no gateway.auth token/password is configured. " +
         "Any local process (or SSRF to loopback) can call browser control endpoints.",
       remediation:
-        "Set gateway.auth.token (recommended) or gateway.auth.password so browser control HTTP routes require authentication. Restarting the gateway will auto-generate gateway.auth.token when browser control is enabled.",
+        "Set gateway.auth.token (recommended) or gateway.auth.password so browser control HTTP routes require authentication. In trusted-proxy mode, set gateway.auth.password if you want standalone loopback browser HTTP auth.",
     });
   }
 
