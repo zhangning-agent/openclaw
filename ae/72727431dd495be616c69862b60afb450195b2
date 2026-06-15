@@ -1,0 +1,16 @@
+src/gateway/auth.ts
+  h_115c9141a112f7 481-483
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ae72727431dd495be616c69862b60afb450195b2",
+  "prompts": {},
+  "humans": {
+    "h_115c9141a112f7": {
+      "author": "“zhangning” <zhangning.2025@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
