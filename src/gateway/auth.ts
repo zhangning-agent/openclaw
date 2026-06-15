@@ -478,6 +478,9 @@ async function authorizeGatewayConnectCore(
       }
       return { ok: true, method: "trusted-proxy", user: result.user };
     }
+    if (localDirect && authSurface === "ws-control-ui") {
+      return { ok: true, method: "none" };
+    }
     if (localDirect && auth.password && connectAuth?.password) {
       if (limiter) {
         const rlCheck: RateLimitCheckResult = limiter.check(ip, rateLimitScope);
