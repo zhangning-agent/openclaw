@@ -1,7 +1,7 @@
 {
   "name": "openclaw",
   "version": "2026.5.28",
-  "description": "Multi-channel AI gateway with extensible messaging integrations",
+  "description": "Multi-channel AI gateway with extensible messaging integrations, arkclaw version 1.3.2",
   "keywords": [],
   "homepage": "https://github.com/openclaw/openclaw#readme",
   "bugs": {
